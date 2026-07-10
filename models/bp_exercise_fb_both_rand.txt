@@ -1,0 +1,170 @@
+########## NAME
+bp_exercise_fb_both_rand
+########## METADATA
+time_unit = m
+
+//Author: Kajsa Tunedal, kajsa.tunedal@liu.se
+// added individual random effects on some parameters
+
+########## MACROS
+########## STATES
+d/dt(ESV)       = ESVi-ESVd   
+d/dt(EDV)       = EDVi-EDVd                                                             
+d/dt(HR)        = HRi - HRd   
+d/dt(DBP)       = DBPi-DBPd
+d/dt(SBP)       = SBPi-SBPd
+d/dt(AvO2_diff) = avo2i-avo2d                                                                                                                                      
+d/dt(R)         = Ri-Rd
+
+ESV(0)       = 50
+EDV(0)       = 140                                                                       
+HR(0)        = IC_HR    
+DBP(0)       = IC_DBP
+SBP(0)       = IC_SBP
+AvO2_diff(0) = IC_AvO2_diff #=IC_VO2/(IC_HR*IC_SV)                                                              
+R(0)         = IC_R
+
+########## PARAMETERS
+keHR=0.0567                                                                           
+k_out_HR=5.17                                                                             
+keESV=0.01                                                                        
+k_out_ESV=1.123 
+keEDV=0                                                                        
+k_out_EDV=0.006                                                                       
+keSBP=0.055 
+k_out_SBP=0.018                                                                   
+keDBP=0.06
+k_out_DBP=0.158                                                                   
+keR=0.001                                                                             
+k_out_R= 0.011                                                                             
+keavo2 = 12.14
+k_out_avo2 = 12.80
+delayneeded = 1000
+vo2_per_w = 10
+
+Wmax = 200 # If Wmax is not known, it can be estimated as a parameter and W can be used as an input instead of percentWmax
+
+# Initial condictions
+IC_ESV = 40
+IC_EDV = 150
+IC_HR = 80
+IC_DBP = 70
+IC_SBP = 120
+IC_VO2 = 240
+IC_R = 0.007
+
+SVdiff = 0 # if SV and EDV ESV data mismatch, this parameter is set to adjust the SV to be in accordance with data
+
+# Individual random effects that makes parameters deviate from the mean population values
+# these are optimized as 0-0.1 then calculated as -0.5 to get the span -0.05-0.05
+keR_r = 0
+keSBP_r = 0      #fixed to 0, not needed
+keESV_r = 0 
+k_out_SBP_r = 0  #fixed to 0, not needed
+k_out_HR_r = 0   #fixed to 0, not needed
+k_out_DBP_r = 0  #fixed to 0, not needed                                                            
+keDBP_r = 0      #fixed to 0, not needed
+
+########## VARIABLES
+# Input: relative exercise intensity
+HRmax = HRmax_in>1? HRmax_in : (220-age)*0.85 # If Hrmax is not given as an input, calculate based on age. *0.85 because of supine exercise. If upright, it should be removed.
+percWmax = max(percWmaxin, 100*Win/Wmax) # If Wmax is not known, it can be estimated as a parameter and W can be used as an input instead of percentWmax
+W = max(Win, percWmaxin*Wmax/100) # Either watt, wmax, or percent of wmax can be given as input to the model
+
+# If edv-esv and sv mismatch, adjust sv to match sv data (parameter value set to non-zero outside of model in that case)
+IC_SV=(IC_EDV-IC_ESV) + SVdiff 
+SV=(EDV-ESV) + SVdiff 
+IC_AvO2_diff = IC_VO2/(IC_HR*IC_SV/1000)
+
+# Calculate other neccessary variables
+CO=HR*SV/1000                           # Cardiac output, ml to L
+IC_CO = IC_HR*IC_SV/1000                        
+MAP = (1/3)*SBP + (2/3)*DBP             # Mean arterial pressure
+IC_MAP = IC_SBP*(1/3) + IC_DBP*(2/3)
+VO2=CO*AvO2_diff                        # Fick's principle. L/min * mL/L  = mL/min
+Sato2_diff = 100*AvO2_diff/(Hb*1.36)    # Oxygen saturation
+MAP_change = (MAP-IC_MAP)/IC_MAP        # Used as pos/neg feedback to R and ESV reactions (if large BP increase, SV should increase less and R should decrease more)
+
+# Reactions for the states
+HRi = (percWmax/100)*((HRmax-HR)*keHR + (HRmax-IC_HR)*k_out_HR)  // HR should not increase above HRmax.
+HRd = (HR-IC_HR)*k_out_HR   // cannot decrease below IC_HR, which is assumed to be resting heartrate                                                       
+ESVd= ESV*(keESV+keESV_r*keESV)*percWmax*IC_SV*(1/(1+MAP_change)) // should normally decrease or stay similar, but was also observed to increase in supine physical activity with high resting stroke volumes
+ESVi=(IC_ESV-ESV)*k_out_ESV
+EDVi= keEDV*percWmax   // keEDV set to 0, no exercise effect in supine non-athletes                                    
+EDVd=(EDV-IC_EDV)*k_out_EDV  // k_out_EDV set to 0, no exercise effect in supine non-athletes                                    
+SBPi=keSBP*(CO*R - IC_CO*IC_R)
+SBPd= k_out_SBP*(SBP-IC_SBP)
+DBPi= keDBP*(CO*R - IC_CO*IC_R)
+DBPd= k_out_DBP*(DBP-IC_DBP)
+avo2i = percWmax*keavo2 // more o2 is consumed with more exercise -> o2 veins decrease, -> avo2diff increases
+avo2d = (AvO2_diff-IC_AvO2_diff)*k_out_avo2
+Rd=R*(keR+keR_r*keR)*percWmax*MAP_change                                                                                                             
+Ri=k_out_R*(IC_R-R) 
+
+# Convert R to Rtot (for input to the cardiovascular lumped parameter avatar model)
+Rtot = R*60/1000 # [mmHg*min/L]  --> [mmHg*s/mL]: *60 / 1000
+
+########## FUNCTIONS
+########## EVENTS
+
+########## OUTPUTS
+# Outputs to avatar model
+T_in = 60/HR
+Rtot_in = Rtot
+
+########## INPUTS
+percWmaxin    = percWmax_in @ 0      // % of Wmax (maximum watt that can be maintained)
+Win           = watt_in     @ 0      // watt (joule/s)
+weight        = weight      @ 80     // Kg
+age           = age         @ 60     // years
+HRmax_in      = HRmax_in    @ 1      //beats/minute (default should be 220-age* 0.85 in supine position)
+BSA           = BSA         @ 2      // m2
+Hb            = hb          @150     // g/L
+
+########## FEATURES
+SBP = SBP [mmHg]
+DBP = DBP [mmHg]
+HR = HR [bpm]
+SV = SV [mL] 
+SVi = SV/BSA [mL/m2] // SV/BSA [mL/m2]
+EDVi = EDV/BSA [mL/m2]
+ESVi = ESV/BSA [mL/m2]
+EDV = EDV [mL]
+ESV = ESV [mL]
+EF = 100*SV/EDV [%]
+MAP = MAP [mmHg]
+CO = CO [L/min]
+CI = CO/BSA [L/min/m2]
+VO2 = VO2 [mL/min]
+VO2 per kg = VO2/weight [mL/kg/min]
+R = R [mmHg*min/L]
+Rtot = Rtot [mmHg*s/mL]
+R_decrease = Rd [mmHg*min/L/min]
+R_increase = Ri [mmHg*min/L/min]
+SVR = R*80 [dyn*s/cm^5]
+avo2diff = AvO2_diff [mL/L]
+HRmax = HRmax [bpm]
+percWmax = percWmax [%]
+Workload=W [watt]
+Sato2_diff=Sato2_diff [%]
+T = 60/HR [s]
+SBPd=SBPd
+SBPi=SBPi
+IC_CO_IC_R = IC_CO*IC_R
+CO_R = CO*R
+MAP change = 100*(MAP - IC_MAP)/IC_MAP [%]
+SBP change = 100*(SBP - IC_SBP)/IC_SBP [%]
+DBP change = 100*(DBP - IC_DBP)/IC_DBP [%]
+HR change = 100*(HR - IC_HR)/IC_HR [%]
+SVR change = 100*(R - IC_R)/IC_R [%]
+CO change = 100*(CO - IC_CO)/IC_CO [%]
+SV change = 100*(SV - IC_SV)/IC_SV [%]
+ESV change = 100*(ESV - IC_ESV)/IC_ESV [%]
+VO2 change = 100*(VO2 - IC_VO2)/IC_VO2 [%]
+ESV_increase = ESVi
+ESV_decrease = ESVd
+IC_SV = IC_SV
+IC_SVi=IC_SV/BSA
+keESV_r=keESV_r
+keR_r=keR_r
+k_out_SBP_r=k_out_SBP_r

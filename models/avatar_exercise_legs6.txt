@@ -1,0 +1,327 @@
+########## NAME
+avatar_exercise_legs6
+########## METADATA
+time_unit = s
+
+//Author: Kajsa Tunedal, kajsa.tunedal@liu.se
+
+########## MACROS
+########## STATES
+d/dt(Qpv) = (P_PV - Rpv*Qpv - P_LA)/Lpv
+d/dt(Qmv) = (P_LA - Rmv_diode*Qmv - P_LV)/Lmv
+d/dt(Qav) = (P_LV - Rav_diode*Qav - P_AO)/Lav
+d/dt(Qaa) = (P_AO - Rao*Qaa - Puart)/Lao
+
+d/dt(Vpulm) = Qpu - Qpv 
+d/dt(Vla) = Qpv - Qmv
+d/dt(Vlv) = Qmv - Qav
+d/dt(Vaorta) = Qav - Qaa 
+d/dt(Vuart) = Qaa-Qupper-Qul
+d/dt(Vlart) = Qul-Qleg
+d/dt(Vlvein) = Qleg - Qlu
+d/dt(Vuvein) = Qlu + Qupper - Qpu 
+
+Qpv(0) = 0
+Qmv(0) = 0
+Qav(0) = 0
+Qaa(0) = 0
+
+Vpulm(0) = IC_Vpulm
+Vla(0) = IC_Vla
+Vlv(0) = IC_Vlv
+Vaorta(0) = IC_Vaorta
+Vuart(0) = IC_Vuart
+Vlart(0) = IC_Vlart
+Vlvein(0) = IC_Vlvein
+Vuvein(0) = IC_Vuvein
+
+########## PARAMETERS
+// Subject specific parameters
+Cpvc = 10 //4
+Rpu = 0.01
+Rpv = 0.002
+Lpv = 0.0005
+ELCo = 3.81156246548926258555
+Caa = 0.12367084767074999763
+Emax_LA = 0.14007262281514298863
+Emax_LV_orig = 1.92293715777547391532
+Emin_LA = 0.11564247837264500507
+Emin_LV = 0.07564372002459850142
+Lao = 0.00040221336467217002
+Lav = 0.00014603903586280601
+Lmv = 0.00050166636372005701
+Rao = 0.07864610756126340363
+Rmv = 0.00434744560939943989
+k_diast_LA = 0.19828852451323000783
+k_diast_LV_orig = 0.46001328156847398620
+k_syst_LA = 0.12359464349113100101
+k_syst_LV = 0.49334575719769002689
+m1_LA = 1.41118010206129995687
+m1_LV = 1.22911354922997007044
+m2_LA = 13.55835268112550018316
+m2_LV = 37.75769329464470303037
+onset_LA_orig = 0.23259883580438089901
+onset_LV = 1.45507836349593988601
+
+Cuart = 10
+Clart = 10
+Clvein = 20
+Cuvein = 25
+Rul = 0.1
+Rleg = 0.05
+Rlu = 0.01
+
+Raa = 0.01
+Rpvc = 0.01
+
+// avatar exercise parameters (also subject-specific)
+khr_R = 0.1
+khr_kdiastLV = 1
+khr_ksystLV = 1
+khr_onsetLA =  1.4
+khr_onsetLV = 0
+khr_EmaxLV = 1
+khr_EmaxLA=1
+khr_EminLV = 0
+khr_EminLA = 0
+khr_m1LV = 0
+khr_m2LV = 0
+khr_m1LA = 0
+khr_m2LA = 0
+khr_Caa = 0.1
+
+# NOT IN USE
+onset_patspec = 1
+m2LV_patspec = 1
+emaxLV_patspec = 1
+emaxLA_patspec = 1
+caa_patspec = 1
+
+# ------------- Constants  ---------------
+Ks_LA = 0.00000001
+Ks_LV = 0.000000004
+rho_blood = 1.06
+
+# Blood volumes
+Vtot = 5000.0 // total blood volume in mL, should be patient specific
+IC_Vlv = 120.0 //LV EDV - maximal volume of left ventricle at end of ventricular diastole
+IC_Vla = 15.0 // minimal LA volume (volume at end of atrial systole, or end of ventricular diastole)
+// Distribution of total blood volume should be based on fractions of total blood volume, set outside of model file
+IC_Vpulm = 10
+IC_Vaorta = 40
+IC_Vuart = 10
+IC_Vlart = 10
+IC_Vlvein =10
+IC_Vuvein = 10
+
+// Unstressed volumes for the left atrium and ventricle
+V0_LA = 3.0
+V0_LV = 10.0
+
+// constants calculated from other parameters, should be set before simulation outside of model file
+norm_factor_LA = 0.55968818593601665778
+norm_factor_LV = 0.43804190446887325550
+
+// heartrate parameters that should be set from the outside of the model at start of simulation
+currT = 1
+t0 = 0
+Torig = 1 // = T at rest
+
+########## VARIABLES
+// Relative time for one heartbeat 
+modtime = time-t0
+
+// Fraction of total blood volume that represents the unstressed volume. 
+// Veins have larger unstressed volumes (ie less of total volume that is affected by the compliance) but larger total volume
+VpulmZP = 0.9*IC_Vpulm
+VaortaZP = 0.7*IC_Vaorta
+VuartZP = 0.7*IC_Vuart
+VlartZP = 0.7*IC_Vlart
+VlveinZP = 0.9*IC_Vlvein
+VuveinZP = 0.9*IC_Vuvein
+
+// Variables that change with exercise/heartrate changes
+// increse with exercise:
+k_diast_LV = k_diast_LV_orig*(1 - khr_kdiastLV*(currT-Torig)/Torig)  //less relative diastole, more systole
+Emax_LA_ex = Emax_LA*(1 - khr_EmaxLA*(currT-Torig)/Torig)
+m2_LV_ex = m2_LV*(1 - khr_m2LV*(currT-Torig)/Torig) // better relaxation, earlier E peak in MV flow
+
+// decrease with exercise:
+onset_LA = onset_LA_orig*(Torig/currT) + khr_onsetLA*(currT-Torig)/(Torig)
+Emax_LV = Emax_LV_orig*(1 + khr_EmaxLV*(currT-Torig)/Torig) // increases but by other params, decrease here to compensate
+k_syst_LV_ex = k_syst_LV*(1 + khr_ksystLV*(currT-Torig)/Torig)  //stronger earlier av aa flow & pressure
+Rleg_ex = Rleg*(1 + khr_R*(currT-Torig)/Torig) 
+Rul_ex = Rul*(1 + khr_R*(currT-Torig)/Torig) 
+Caa_ex = Caa*(Torig/currT) + khr_Caa*(currT-Torig)/(Torig)
+
+// Previously tested exercise effects that are not needed to describe data
+m1_LV_ex = m1_LV
+m1_LA_ex = m1_LA
+m2_LA_ex = m2_LA
+Emin_LA_ex = Emin_LA
+Emin_LV_ex = Emin_LV
+onset_LV_ex = onset_LV
+
+// Resistances
+Rbody = Rtot-Rao # derived from Rtot = Rbody + Rao
+Rlu_ex = max(Rbody*1.05 - Rul_ex - Rleg_ex, Rlu*(1 + khr_R*(currT-Torig)/Torig))
+Rlower = Rul_ex + Rleg_ex + Rlu_ex
+Rlower_orig = Rul + Rleg + Rlu
+Rupper = 1/((1/Rbody)-((1/Rlower))) #1/Rbody = (1/Rlower) + (1/Rupper)
+
+// Pressures in the rest of the body
+Ppvc = (Vpulm-VpulmZP)/Cpvc
+Paa = (Vaorta-VaortaZP)/Caa
+Puart = (Vuart-VuartZP)/Cuart
+Plart = (Vlart-VlartZP)/Clart
+Plvein = (Vlvein-VlveinZP)/Clvein
+Puvein = (Vuvein-VuveinZP)/Cuvein
+
+// Flows in the rest of the body (voltage law-derived)
+# Derivation of Qpu:
+# Qpu  = (Puvein-Rpvc*Qpvc-Ppvc)/Rpu
+# Qpu  = (Puvein-Rpvc*(Qpu-Qpv)-Ppvc)/Rpu
+# Qpu*Rpu  = (Puvein-Rpvc*Qpu + Rpvc*Qpv-Ppvc)
+# Qpu*Rpu+Rpvc*Qpu  = Puvein + Rpvc*Qpv-Ppvc
+Qpu  = max((Puvein + Rpvc*Qpv-Ppvc) / (Rpu+Rpvc),0) # no backflow allowed
+
+Qul = (Puart-Plart)/Rul_ex
+Qupper = (Puart-Puvein)/Rupper
+Qleg = (Plart-Plvein)/Rleg_ex
+Qlu = max((Plvein-Puvein)/Rlu_ex,0)  # no backflow allowed
+
+//Pressure in the pulmonary venous system
+P_PV = Ppvc + Rpvc*(Qpu-Qpv)
+
+// Left atrial (LA) elastance funciton
+Ts_LA = k_syst_LA*currT
+Td_LA = k_diast_LA*currT
+uLA = modtime - onset_LA*currT 
+tLA = uLA + lt(uLA,0)*currT - gt(uLA,currT)*currT
+g1_LA = (tLA/Ts_LA)^m1_LA_ex
+g2_LA = (tLA/Td_LA)^m2_LA_ex
+Ela = (1/norm_factor_LA)*(Emax_LA_ex-Emin_LA_ex)*(g1_LA/(1+ g1_LA)) *(1./(1 + g2_LA)) + Emin_LA_ex
+
+// Flow and pressure in left atrium
+Qla = Qmv - Qav
+P_LA = Ela*(Vla - V0_LA)*(1-Ks_LA*Qla)
+
+// Left ventricle (LV) elastance function
+Ts_LV = k_syst_LV_ex*currT
+Td_LV = k_diast_LV*currT
+ulv = modtime - onset_LV_ex*currT
+tlv = ulv + lt(ulv,0)*currT - gt(ulv,currT)*currT //+currT to avoid negative values, -currT to avoid values > T
+g1_LV = (tlv/Ts_LV)^m1_LV_ex
+g2_LV = (tlv/Td_LV)^m2_LV_ex
+Elv = (1/norm_factor_LV)*(Emax_LV-Emin_LV_ex)*(g1_LV/(1+ g1_LV)) *(1./(1 + g2_LV)) + Emin_LV_ex
+
+// Flow and pressure in left ventricle
+Qlv = Qmv - Qav
+P_LV = Elv*(Vlv - V0_LV)*(1-Ks_LV*Qlv)
+
+// Mitral valve
+Rmv_diode = gt(Qmv,0)*Rmv + le(Qmv,0)*1e6
+
+// Aortic valve
+Rav = Qav * rho_blood/(2*ELCo^2)* (0.06/133.322) #Resistance in the aortic valve
+Rav_diode = gt(Qav,0)*Rav + le(Qav,0)*1e6
+
+// Pressure in the ascending aorta
+P_AO = Raa*(Qav - Qaa)  + Paa # pressure in the aorta
+
+########## FUNCTIONS
+########## EVENTS
+// The heartbeat starts at t0. Then, everything cyclic resets.
+eventT0 = ge(time,t0), currT, T # all simulations start at t0,make sure currT is correct from the start
+eventT = ge(time-t0,currT), currT, T, t0, time
+
+########## OUTPUTS
+
+########## INPUTS
+T = T_in @ 1
+Rtot = Rtot_in @ 1
+
+########## FEATURES
+MV = Qmv [mL/s]
+AV = Qav [mL/s]
+AA = Qaa [mL/s]
+PV = Qpv [mL/s]
+Pao = P_AO [mmHg]
+Left ventricular volume = Vlv [mL]
+Left atrial volume = Vla [mL]
+Elv = Elv
+Ela = Ela
+Elv percent = 100*(Elv)/Emax_LV_orig
+Ela percent = 100*(Ela)/Emax_LA
+Mitral valve open = gt(P_LA,P_LV)
+Aortic valve open = gt(P_LV,P_AO)
+P_LV = P_LV [mmHg]
+P_LA = P_LA [mmHg]
+
+T = T [s]
+currT = currT [s]
+
+// Parameters to fit to data
+Caa = Caa_ex
+ELCo = ELCo
+Emax_LV = Emax_LV
+
+// params to check
+Emin_LV = Emin_LV_ex
+Emax_LA = Emax_LA_ex
+Emin_LA = Emin_LA_ex
+
+// Volumes
+Vla = Vla [mL]
+Vlv = Vlv [mL]
+
+// Pressures
+Ppvc = Ppvc
+Paa = Paa
+Puart = Puart
+Plart = Plart
+Plvein = Plvein
+Puvein =Puvein
+Ppu = Puvein
+
+// Flows
+Qleg =Qleg
+Qupper=Qupper
+Qul = Qul
+Qlu = Qlu
+Qpu = Qpu
+
+// Parameters that changes with exercise
+k_diast_LV = k_diast_LV
+k_syst_LV = k_syst_LV_ex
+//emax & emin LA and LV (already a variable)
+m1_LV = m1_LV_ex
+m2_LV = m2_LV_ex
+m1_LA = m1_LA_ex
+m2_LA = m2_LA_ex
+Rupper = Rupper
+onset_LA = onset_LA
+onset_LV_ex = onset_LV_ex
+Rleg = Rleg_ex
+Rul = Rul_ex
+Rlu = Rlu_ex
+
+// Changes from rest to exercise (ex-rest/rest)
+k_diast_LV_change = 100*(k_diast_LV-k_diast_LV_orig)/k_diast_LV_orig [%]
+k_syst_LV_change = 100*(k_syst_LV_ex-k_syst_LV)/k_syst_LV [%]
+m2_LV_change = 100*(m2_LV_ex-m2_LV)/m2_LV [%]
+Caa_change = 100*(Caa_ex-Caa)/Caa [%]
+onset_LA_change = 100*(onset_LA-onset_LA_orig)/onset_LA_orig [%]
+Rleg_change = 100*(Rleg_ex-Rleg)/Rleg [%]
+Rul_change = 100*(Rul_ex-Rul)/Rul [%]
+Rlu_change = 100*(Rlu_ex-Rlu)/Rlu [%]
+Rlower_change = 100*(Rlower-Rlower_orig)/Rlower_orig [%]
+
+//NOTE: the actual emax LV change is the maximum of Elv since it is affected by other parameters as well
+Emax_LV_change = 100*(Emax_LV-Emax_LV_orig)/Emax_LV_orig [%]
+Emax_LA_change = 100*(Emax_LA_ex-Emax_LA)/Emax_LA [%]
+
+// Total Resistance
+Rlower = Rlower
+Rbody = Rbody
+Rtot = Rtot

@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.log
+*.tmp
+
+# Virtual environments
+.venv
+.vscode
+
+
+figures/*
+tables/*
+results_PPL/*
+convert_data.py
