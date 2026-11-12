@@ -77,16 +77,20 @@ def setup(MODELNAME,FIXED_PARAMETERS, COMMON_PARAMETERS, STRICT_BOUNDS_PARAMETER
             for subj in controls:
                 if subj not in toopt and subj not in notok_exercisecost and subj not in no_exercisedata and subj not in unc_ok:
                     ESTIMATION_DATA.update({subj:controls[subj]})
+                    VALIDATION_DATA.update(copy.deepcopy({subj:controls[subj]}))
             for subj in patients_pre:
                 if subj not in toopt and subj not in notok_exercisecost and subj not in no_exercisedata and subj not in unc_ok:
                     ESTIMATION_DATA.update({subj:patients_pre[subj]})     
+                    VALIDATION_DATA.update(copy.deepcopy({subj:patients_pre[subj]}))
         else:
             for subj in controls:
                 if subj not in notok_exercisecost and subj not in no_exercisedata:
                     ESTIMATION_DATA.update({subj:controls[subj]})
+                    VALIDATION_DATA.update(copy.deepcopy({subj:controls[subj]}))
             for subj in patients_pre:
                 if subj not in notok_exercisecost and subj not in no_exercisedata:
                     ESTIMATION_DATA.update({subj:patients_pre[subj]})  
+                    VALIDATION_DATA.update(copy.deepcopy({subj:patients_pre[subj]}))
     
         # Set up avatar model and create simulation objects with activities based on the input from the data
         opt_exps=['Rest','Exercise']
@@ -95,6 +99,9 @@ def setup(MODELNAME,FIXED_PARAMETERS, COMMON_PARAMETERS, STRICT_BOUNDS_PARAMETER
         # setup removes all data not needed and creates simulation objects only for the wanted subjects and data
         sims, simsSS, default_params,model = setup_avatar_exercise_simulation(avatarmodelname, ESTIMATION_DATA, DOPPL,opt_exps=opt_exps) 
 
+        if PLOT_ENABLED:
+            sims_val, simsSS_val, default_params_val,model_val = setup_avatar_exercise_simulation(avatarmodelname, VALIDATION_DATA, DOPPL,opt_exps=['Rampdown' ,'Recovery']) 
+        
         # remove everything unneccesary to save memory
         file_name = "./parameters/features_exercisemodel_simulation.json"
         with open(file_name, "r") as f:
@@ -364,7 +371,7 @@ if __name__ == "__main__":
         simsSS_PPL = simsSS # use the same simsSS for PPL as for estimation data
         sims_PPL = sims
         default_params_PPL = default_params
-        if not default_params_val is None:
+        if not default_params_val is None and MODELNAME != 'avatar_exercise':
             ALL_DATA.update(VALIDATION_DATA)
             default_params_PPL.update(default_params_val) # use the default params for validation data as well
             simsSS_PPL.update(simsSS_val) # add the simsSS for validation data to the PPL simsSS
@@ -393,7 +400,15 @@ if __name__ == "__main__":
 
     if len(VALIDATION_DATA) > 0:
         if MODELNAME == 'avatar_exercise':
-            chi2_validation = chi2.ppf(1-0.05, get_dof_subjects(VALIDATION_DATA,do_validation=True))
+            # c8 craches, so remove it from the validation chi2 calculation
+            if 'c8' in VALIDATION_DATA:
+                VALIDATION_DATA.pop('c8')
+            #chi2_validation = chi2.ppf(1-0.05, get_dof_subjects(VALIDATION_DATA,do_validation=True))
+            chi2_validation = chi2.ppf(1-0.05, get_dof_subjects(VALIDATION_DATA))
+            chi2_validation_dict = {}
+            chi2_validation_dict['all'] = chi2_validation 
+            for subj,d in VALIDATION_DATA.items():
+                chi2_validation_dict[subj] =  chi2.ppf(1-0.05, get_dof_subjects({subj:d})) 
         else:
             chi2_validation = chi2.ppf(1-0.05, get_dof(VALIDATION_DATA,do_validation=True))
         if DOPPL:
@@ -687,7 +702,7 @@ if __name__ == "__main__":
                         'Rleg':'Rleg_change','Rupper':'Rupper_change','Rlower':'Rlower_change',
                         'Rul':'Rul_change','Rlu':'Rlu_change'}
             subjects = [k for k in ESTIMATION_DATA if k[0] == 'c' or k[0] == 'p']
-            if len(subjects) > 2:
+            if len(subjects) > 2 and 'Rest' in ESTIMATION_DATA[subjects[0]] and 'Exercise' in ESTIMATION_DATA[subjects[0]]:
                 plot_change_between_sims(features,subjects,sims,expnames=['Rest','Exercise'],figname='Figure7_avatar_rest_vs_exercise',savefig=True)
                 plot_change_between_sims(features,subjects,sims,expnames=['Rest','Exercise'],figname='Figure7_avatar_rest_vs_exercise_percent',savefig=True,percent=True,uncnames=uncnames)
                 features={'T':['max','currT','s'],
@@ -698,7 +713,6 @@ if __name__ == "__main__":
                         'Rleg':['mean','Rleg','mmHg*s/mL'],'Rupper':['mean','Rupper','mmHg*s/mL'],
                         'Rlower':['mean','Rlower','mmHg*s/mL'],'Rbody':['mean','Rbody','mmHg*s/mL'],'Rtot':['mean','Rtot','mmHg*s/mL'],
                         'Rul':['mean','Rul','mmHg*s/mL'],'Rlu':['mean','Rlu','mmHg*s/mL']}
-                subjects = [k for k in ESTIMATION_DATA if k[0] == 'c' or k[0] == 'p']
                 print("\n##### Table of percentage changes with exercise #####")
                 calc_percchange_table(features,subjects,sims,expnames=['Rest','Exercise'],savetables=True,uncnames=uncnames)
 
@@ -736,6 +750,14 @@ if __name__ == "__main__":
                 plot_allinone_avatar(ps,
                                      simsSS,{k:ESTIMATION_DATA[k] for k in ESTIMATION_DATA if k[0] == 'p'},
                                      figname='suppl_All_subjects_avatarexercise_p',savefigs=True,nrows = len(ps)*2)
+            if selected_subj in VALIDATION_DATA:
+                cs = {k:sims_val[k] for k in sims_val if k[0] == 'c'}
+                plot_allinone_avatar(cs,simsSS_val,{k:VALIDATION_DATA[k] for k in VALIDATION_DATA if k[0] == 'c'},
+                                     figname='extra_All_subjects_avatarexercise_c_validation',savefigs=True,nrows = len(cs)*2)
+                ps={k:sims_val[k] for k in sims_val if k[0] == 'p'}
+                plot_allinone_avatar(ps,
+                                     simsSS_val,{k:VALIDATION_DATA[k] for k in VALIDATION_DATA if k[0] == 'p'},
+                                     figname='extra_All_subjects_avatarexercise_p_validation',savefigs=True,nrows = len(ps)*2)
             plt.show()
 
 

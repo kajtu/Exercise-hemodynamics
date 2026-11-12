@@ -252,7 +252,7 @@ def get_pvaluetext(x,y,independent=True,parametric=True,significantdigits=3):
         ptext = f'p={p_val:.{significantdigits}f}'
     return ptext
 
-def plot_change_between_sims(features,subjects,sims,expnames=['Rest','Exercise'],figname='sim_rest_vs_exercise',savefig=False,percent=False,parametric=False,uncnames={}):
+def plot_change_between_sims(features,subjects,sims,expnames=['Rest','Exercise'],figname='sim_rest_vs_exercise',savefig=False,percent=False,parametric=True,uncnames={}):
     if percent:
         ncols=8
         rowheight=4.5
@@ -377,7 +377,7 @@ def plot_change_between_sims(features,subjects,sims,expnames=['Rest','Exercise']
         fig.savefig(f"./figures/{figname}.png", dpi=300)
         fig.savefig(f"./figures/{figname}.svg")
 
-def calc_percchange_table(features,subjects,sims,expnames=['Rest','Exercise'],savetables=False,parametric=False,uncnames={}):
+def calc_percchange_table(features,subjects,sims,expnames=['Rest','Exercise'],savetables=False,parametric=True,uncnames={}):
     import pandas as pd
     from scipy.stats import ttest_ind
         # features={'EmaxLV':['max','Elv','mmHg/mL'], 'EmaxLA':['max','Ela','mmHg/mL'],
@@ -456,7 +456,7 @@ def calc_percchange_table(features,subjects,sims,expnames=['Rest','Exercise'],sa
     return dfchange
  
 
-def table_paramvalues(features,subjects,sims,savetables=False,parametric=False,tablename = 'featurevalues',modelname='bp_exercise_fb_both_rand'):
+def table_paramvalues(features,subjects,sims,savetables=False,parametric=True,tablename = 'featurevalues',modelname='bp_exercise_fb_both_rand'):
     import pandas as pd
 
     change_dict = {'vals':['Control (mean+-sd [range])', 'HT (mean+-sd [range])','p-value','Individual SD (mean [range])']}

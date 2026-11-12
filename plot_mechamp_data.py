@@ -51,3 +51,20 @@ varstocomp = ('age','sex','weight','length','waist_circumference','BMI','BSA',
                      'hb','egfr')
 #tabdata,stattable,name_unit_dict = get_tabdata(mechampdata,savetables=savefig,varstocompare=varstocomp)
 
+# Achieved watt
+w_controls = []
+w_patients_pre = []
+w_controls = []
+w_patients_pre = []
+for subj in fulldata:
+    if 'watt' in fulldata[subj]['input'].keys():
+        if subj in controls:
+            w_controls.append(fulldata[subj]['input']['watt'][1])
+        elif subj in patients_pre:
+            w_patients_pre.append(fulldata[subj]['input']['watt'][1])
+c_mean = np.nanmean(w_controls) if w_controls else np.nan
+c_std = np.nanstd(w_controls) if w_controls else np.nan
+p_mean = np.nanmean(w_patients_pre) if w_patients_pre else np.nan
+p_std = np.nanstd(w_patients_pre) if w_patients_pre else np.nan
+print(f"Achieved watt for controls: {w_controls} - mean: {np.round(c_mean,2) if not np.isnan(c_mean) else 'N/A'} +- {np.round(c_std,2) if not np.isnan(c_std) else 'N/A'}, min {np.nanmin(w_controls) if w_controls else 'N/A'}, max {np.nanmax(w_controls) if w_controls else 'N/A'}")
+print(f"Achieved watt for patients pre: {w_patients_pre} - mean: {np.round(p_mean,2) if not np.isnan(p_mean) else 'N/A'} +- {np.round(p_std,2) if not np.isnan(p_std) else 'N/A'}, min {np.nanmin(w_patients_pre) if w_patients_pre else 'N/A'}, max {np.nanmax(w_patients_pre) if w_patients_pre else 'N/A'}")
