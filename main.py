@@ -170,8 +170,10 @@ def setup(MODELNAME,FIXED_PARAMETERS, COMMON_PARAMETERS, STRICT_BOUNDS_PARAMETER
             if param not in COMMON_PARAMETERS and param in FIXED_PARAMETERS: #keep the loaded avatar params for all non-optimized exercise params
                 for subj in default_params:
                     default_params[subj][model.parameter_names.index(param)] = resting_params[subj][model.parameter_names.index(param)]
-                if VALIDATION_DATA is not None and len(VALIDATION_DATA)>0:
-                    for subj in default_params_val:
+        if VALIDATION_DATA is not None and len(VALIDATION_DATA)>0:
+            for subj in default_params_val:
+                for param in model.parameter_names:
+                    if param not in ["currT"]:
                         default_params_val[subj][model.parameter_names.index(param)] = resting_params_val[subj][model.parameter_names.index(param)]
 
     if MODELNAME == 'exercise':
@@ -400,7 +402,9 @@ if __name__ == "__main__":
 
     if len(VALIDATION_DATA) > 0:
         if MODELNAME == 'avatar_exercise':
-            # c8 craches, so remove it from the validation chi2 calculation
+            # p11 and c8 craches, so remove it from the validation chi2 calculation
+            if 'p11' in VALIDATION_DATA:
+                VALIDATION_DATA.pop('p11')
             if 'c8' in VALIDATION_DATA:
                 VALIDATION_DATA.pop('c8')
             #chi2_validation = chi2.ppf(1-0.05, get_dof_subjects(VALIDATION_DATA,do_validation=True))
@@ -751,10 +755,10 @@ if __name__ == "__main__":
                                      simsSS,{k:ESTIMATION_DATA[k] for k in ESTIMATION_DATA if k[0] == 'p'},
                                      figname='suppl_All_subjects_avatarexercise_p',savefigs=True,nrows = len(ps)*2)
             if selected_subj in VALIDATION_DATA:
-                cs = {k:sims_val[k] for k in sims_val if k[0] == 'c'}
+                cs = {k:sims_val[k] for k in sims_val if k[0] == 'c' and k in VALIDATION_DATA}
                 plot_allinone_avatar(cs,simsSS_val,{k:VALIDATION_DATA[k] for k in VALIDATION_DATA if k[0] == 'c'},
                                      figname='extra_All_subjects_avatarexercise_c_validation',savefigs=True,nrows = len(cs)*2)
-                ps={k:sims_val[k] for k in sims_val if k[0] == 'p'}
+                ps={k:sims_val[k] for k in sims_val if k[0] == 'p' and k in VALIDATION_DATA}
                 plot_allinone_avatar(ps,
                                      simsSS_val,{k:VALIDATION_DATA[k] for k in VALIDATION_DATA if k[0] == 'p'},
                                      figname='extra_All_subjects_avatarexercise_p_validation',savefigs=True,nrows = len(ps)*2)
